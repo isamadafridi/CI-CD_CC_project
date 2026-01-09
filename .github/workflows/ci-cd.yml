@@ -1,0 +1,100 @@
+name: CI/CD Pipeline
+
+# Trigger on push to main branch
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  # Build Stage: Set up Python and check syntax
+  build:
+    name: Build and Syntax Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Syntax check with flake8
+        run: |
+          # Stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Exit-zero treats all errors as warnings
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  # Test Stage: Run pytest and fail on errors
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Run tests with pytest
+        run: |
+          pytest test_game.py -v --tb=short
+      
+      - name: Generate coverage report
+        run: |
+          pytest test_game.py --cov=rock_paper_scissor --cov-report=term-missing
+
+  # Deploy Stage: Package application as artifact
+  deploy:
+    name: Package and Deploy
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Package application
+        run: |
+          mkdir -p dist
+          cp rock_paper_scissor.py dist/
+          cp requirements.txt dist/
+          cp test_game.py dist/
+          echo "Application packaged successfully"
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: rock-paper-scissor-app
+          path: dist/
+          retention-days: 30
